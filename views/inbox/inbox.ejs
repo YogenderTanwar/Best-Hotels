@@ -1,0 +1,151 @@
+<% layout('/layouts/boilerplate') %>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<link rel="stylesheet" href="/stylesheets/inbox.css">
+
+
+
+<input type="hidden" value="<%= receiverID %>" id="receiverID" name="receiverID" >
+<input type="hidden" value="<%= userID %>" id="userID" name="userID" >
+<input type="hidden" value="<%= chatID %>" id="chatID" name="chatID" >
+<div id="chat-container">
+    <div id="search-container">
+        <a href="/hotels/inbox" >
+            <header><strong>Inbox</strong></header>
+        </a>
+    </div>
+    
+    <div id="conversation-list">
+        <% for(let item of conversationList){ %> 
+            <!-- <div style= "{text-decoration: none}"> -->
+                <a href="/hotels/inbox/<%=item.receiverId%>">
+                    <div class="conversation">
+                        <img src='<%=item.profileImage%>'/>
+                        <div class="title-text"><%=item.receiverName%></div>
+                        <div class="created-date"><%=item.updatedAt%></div>
+                        <div class="conversation-message">
+                            <%=item.recent_message%>
+                        </div>
+                    </div>
+                </a>
+            <!-- </div> -->
+        <% } %> 
+    </div>
+
+    
+
+    <% if(receiverID ===''){ %> 
+            <div class="text-muted justify-content-center" id="chat-message-list" style="margin: 30px;">
+                <p><strong>Select a Chat to Start Messaging</strong></p>
+            </div>
+    <% }else{ %> 
+            <div id="chat-title">
+                <span>
+                    <%=receiver.username%>
+                </span>
+            </div>
+            <div id="chat-message-list">
+                <% for(let item of conversation){ %> 
+                    <div class="message-row <%=item.message_class%>">
+                        <div class="message-content">
+                            <% var userProfileImage = (receiver.profileImage.url) ? receiver.profileImage.url : 'https:img.icons8.com/metro/26/000000/user-male.png';
+                            if(item.message_class=="other-message"){%>
+                                <img src= <%=userProfileImage%> alt="<%=receiver.username%>" />
+                            <%} %> 
+                            <div class="message-text"><%=item.message_text%></div>
+                            <div class="message-time"></div>
+                        </div>
+                    </div>
+                <% } %> 
+            </div>
+
+                <div id="chat-form" >
+                    <input type="text" name="message" placeholder="type a message" id="message-text"/>
+                    <button id="send_message">
+                        <img src="https://img.icons8.com/fluent/48/000000/filled-sent.png" alt="Add Attachment" />
+                    </button>
+                </div>
+    <% } %> 
+</div>
+
+
+
+
+<script>
+    {
+         var socket = io.connect();
+        const conversationlist = document.querySelector('#conversation-list');
+        const chat_list = document.querySelector('#chat-title');
+        const chat_message_list = document.querySelector('#chat-message-list');
+        const receiverID = document.querySelector('#receiverID').value;
+        const send_message = document.querySelector('#send_message');
+        const chatID = document.querySelector('#chatID').value;
+        const userID = document.querySelector('#userID').value;
+        socket.emit('join', { id: userID });
+        
+        
+        if (send_message) {
+            send_message.addEventListener("click", async function () {
+                const message_text = document.querySelector('#message-text').value;
+                if (receiverID != '' && isvalidmessage(message_text)) {
+                    let data = { message_text: message_text, receiverID: receiverID, chatID: chatID };
+                    
+                    axios.post(`/hotels/inbox/sendMessage`, data, { headers: { "Content-Type": "application/json" } })
+                        .then((res) => {
+
+                            chat_message_list.innerHTML +=
+                                `
+                    <div class="message-row you-message">
+                        <div class="message-content">
+                            <div class="message-text">${message_text}</div>
+                            <div class="message-time"></div>
+                        </div>
+                    </div>    
+                `
+                            scrollDown();
+                            document.querySelector('#message-text').value = '';
+                        })
+                        .catch((err) => {
+                            console.log(err);
+                        })
+
+                }
+            });
+        }
+
+
+        socket.on('message', function (data) {
+            if (receiverID === data.senderId.toString()) {
+                
+                chat_message_list.innerHTML +=
+                    `
+                <div class="message-row other-message">
+                    <div class="message-content">
+                        <img src=${data.profileImage} />
+                        <div class="message-text">
+                            ${data.message_text}
+                        </div>
+                        <div class="message-time"></div>
+                    </div>
+                </div>  
+            `
+            }
+            scrollDown();
+        })
+        scrollDown();
+        function scrollDown() {
+            chat_message_list.scrollTop = chat_message_list.scrollHeight;
+        }
+        function isvalidmessage(message_text) {
+            if (message_text.length > 0)
+                for (let ch of message_text) {
+                    if (ch != ' ') return 1;
+                }
+            return 0;
+        }
+
+    }
+
+    </script>
+
+
